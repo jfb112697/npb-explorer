@@ -1,0 +1,55 @@
+# Rebuilds the data from the Nippon Baseball Data Repository and publishes the site to
+# GitHub Pages: on every push to main, once a day during the season, and on demand.
+name: Build data and deploy
+
+on:
+  push:
+    branches: [main]
+  schedule:
+    - cron: '30 20 * * *' # 05:30 Japan time, after the data repository's nightly refresh
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: pages
+  cancel-in-progress: true
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      # The raw CSVs are about 2 GB and mostly never change; only new months are downloaded.
+      - uses: actions/cache@v4
+        with:
+          path: .cache/raw
+          key: raw-${{ github.run_id }}
+          restore-keys: raw-
+      - run: npm run data:fetch
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+      - run: npm run data:build
+      - run: npx tsc -b && npx vite build --base "/${{ github.event.repository.name }}/"
+      # GitHub Pages has no rewrite rules; serving the app as the 404 page makes deep links work.
+      - run: cp dist/index.html dist/404.html
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: dist
+  deploy:
+    needs: build
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - id: deployment
+        uses: actions/deploy-pages@v4
