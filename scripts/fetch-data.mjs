@@ -11,6 +11,21 @@ const RELEASES = { player_game_stats: 'game_stats', pbp: 'pbp' }
 const headers = { 'User-Agent': 'npb-explorer', Accept: 'application/vnd.github+json' }
 if (process.env.GITHUB_TOKEN) headers.Authorization = `Bearer ${process.env.GITHUB_TOKEN}`
 
+// Release downloads occasionally return a 5xx or drop mid-stream; a few retries ride it out.
+async function download(url, dest, name) {
+  for (let attempt = 1; ; attempt++) {
+    try {
+      const dl = await fetch(url, { headers: { 'User-Agent': 'npb-explorer' } })
+      if (!dl.ok || !dl.body) throw new Error(`status ${dl.status}`)
+      await pipeline(Readable.fromWeb(dl.body), createWriteStream(dest))
+      return
+    } catch (e) {
+      if (attempt === 5) throw new Error(`Download failed for ${name} after 5 tries: ${e.message}`)
+      await new Promise((r) => setTimeout(r, 2000 * attempt))
+    }
+  }
+}
+
 let fetched = 0, skipped = 0
 for (const [tag, dir] of Object.entries(RELEASES)) {
   mkdirSync(join(RAW, dir), { recursive: true })
@@ -20,9 +35,7 @@ for (const [tag, dir] of Object.entries(RELEASES)) {
   for (const a of assets.filter((x) => x.name.endsWith('.csv'))) {
     const dest = join(RAW, dir, a.name)
     if (fileSize(dest) === a.size) { skipped++; continue }
-    const dl = await fetch(a.browser_download_url, { headers: { 'User-Agent': 'npb-explorer' } })
-    if (!dl.ok || !dl.body) throw new Error(`Download failed for ${a.name}: ${dl.status}`)
-    await pipeline(Readable.fromWeb(dl.body), createWriteStream(dest))
+    await download(a.browser_download_url, dest, a.name)
     fetched++
     console.log(`  ${a.name} (${(a.size / 1e6).toFixed(1)} MB)`)
   }
