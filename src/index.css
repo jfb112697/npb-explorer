@@ -199,6 +199,7 @@ th[aria-sort] { color: var(--ink) !important; }
 .rail-scale { min-height: 18px; }
 .rail-scale-labels { display: flex; justify-content: space-between; font-size: 11px; color: var(--muted); margin: 0 13px; }
 .rail-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 22px 44px; }
+.rail-col { display: flex; flex-direction: column; gap: 22px; }
 .rail-block h3 { font-size: 14px; font-weight: 750; margin-bottom: 4px; font-variation-settings: var(--wide); }
 .rail-filter { margin: 6px 0 8px; }
 .rail-block h3 .muted { font-weight: 500; font-variation-settings: 'wdth' 100; }

@@ -11,16 +11,20 @@ import type { Category, Line, Meta, PlayerInfo, SeasonDetail } from '../lib/type
 
 type View = 'bat' | 'pit'
 
-const RAILS: Record<View, { title: string; cat: Category; groups?: string[] }[]> = {
+// `col` pins each block to a side of the rail grid. The two columns flow
+// independently (no shared grid rows), so blocks stack with normal margins
+// and a short block never leaves a gap across from a taller one.
+const RAILS: Record<View, { title: string; cat: Category; groups?: string[]; col: 1 | 2 }[]> = {
   bat: [
-    { title: 'Hitting', cat: 'bat', groups: ['Standard', 'Advanced'] },
-    { title: 'Plate discipline', cat: 'bat', groups: ['Plate discipline'] },
-    { title: 'Baserunning', cat: 'run' },
-    { title: 'Fielding', cat: 'fld' },
+    { title: 'Hitting', cat: 'bat', groups: ['Standard', 'Advanced'], col: 1 },
+    { title: 'Fielding', cat: 'fld', col: 1 },
+    { title: 'Tracking', cat: 'bat', groups: ['Tracking'], col: 2 },
+    { title: 'Plate discipline', cat: 'bat', groups: ['Plate discipline'], col: 2 },
+    { title: 'Baserunning', cat: 'run', col: 2 },
   ],
   pit: [
-    { title: 'Results', cat: 'pit', groups: ['Standard', 'Advanced'] },
-    { title: 'Stuff and command', cat: 'pit', groups: ['Stuff and command'] },
+    { title: 'Results', cat: 'pit', groups: ['Standard', 'Advanced'], col: 1 },
+    { title: 'Stuff and command', cat: 'pit', groups: ['Stuff and command'], col: 2 },
   ],
 }
 const HEADLINE: Record<View, [Category, string][]> = {
@@ -190,26 +194,33 @@ function Percentiles({ s, d, view }: { s: Season; d: Derived; view: View }) {
       note={<>Where this player ranks among NPB {view === 'pit' ? 'pitchers' : 'hitters'} with at least {poolNote}. 100 is the best in the league, 50 is the median. Hover a stat name for its definition and how it compares with MLB.</>}
     >
       <div className="rail-grid">
-        {blocks.map((b) => (
-          <div key={b.title} className="rail-block">
-            <h3>
-              {b.title}{b.pos && <span className="muted"> at {POSITION_NAME[b.pos]?.toLowerCase()}, {fmt(d.row.f?.[b.pos]?.o ?? 0, 'ip')} innings</span>}
-              {!b.qualified && (
-                <Tip content={<div className="stat-tip"><p>Below the playing-time minimum for this group, so these ranks rest on a small sample. The player is ranked against the qualified pool but is not part of it.</p></div>}>
-                  <span className="chip chip-warn">Small sample</span>
-                </Tip>
-              )}
-            </h3>
-            {b.cat === 'fld' && fieldPositions.length > 1 && (
-              <div className="rail-filter">
-                <Segmented label="Fielding position" value={b.pos!} onChange={setPickedPos}
-                  options={fieldPositions.map((p) => ({ value: p, label: p, title: `${POSITION_NAME[p]}, ${d.row.f?.[p]?.g ?? 0} games` }))} />
-              </div>
-            )}
-            <RailScale />
-            {b.items.map((x) => <Rail key={x.def.key} cat={b.cat} k={x.def.key} value={x.value} pct={x.pct} />)}
-          </div>
-        ))}
+        {[1, 2].map((col) => {
+          const colBlocks = blocks.filter((b) => b.col === col)
+          return colBlocks.length > 0 && (
+            <div key={col} className="rail-col">
+              {colBlocks.map((b) => (
+                <div key={b.title} className="rail-block">
+                  <h3>
+                    {b.title}{b.pos && <span className="muted"> at {POSITION_NAME[b.pos]?.toLowerCase()}, {fmt(d.row.f?.[b.pos]?.o ?? 0, 'ip')} innings</span>}
+                    {!b.qualified && (
+                      <Tip content={<div className="stat-tip"><p>Below the playing-time minimum for this group, so these ranks rest on a small sample. The player is ranked against the qualified pool but is not part of it.</p></div>}>
+                        <span className="chip chip-warn">Small sample</span>
+                      </Tip>
+                    )}
+                  </h3>
+                  {b.cat === 'fld' && fieldPositions.length > 1 && (
+                    <div className="rail-filter">
+                      <Segmented label="Fielding position" value={b.pos!} onChange={setPickedPos}
+                        options={fieldPositions.map((p) => ({ value: p, label: p, title: `${POSITION_NAME[p]}, ${d.row.f?.[p]?.g ?? 0} games` }))} />
+                    </div>
+                  )}
+                  <RailScale />
+                  {b.items.map((x) => <Rail key={x.def.key} cat={b.cat} k={x.def.key} value={x.value} pct={x.pct} />)}
+                </div>
+              ))}
+            </div>
+          )
+        })}
       </div>
     </Panel>
   )
