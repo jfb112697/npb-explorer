@@ -37,6 +37,7 @@ to `main` and once a day. It does not run `data:names`: run that locally and com
 
 - `scripts/build-data.mjs` decodes the play-by-play result codes and writes the JSON.
 - `src/lib/stats.ts` defines every stat: formula, format, direction and tooltip text.
+- `scripts/seager.mjs` fits the NPB SEAGER decision model; see [method and checks](docs/seager.md).
 - `src/lib/data.ts` loads the JSON and computes league context and percentiles.
 - `data/name-overrides.json` holds hand-entered names for players npb.jp could not resolve.
 

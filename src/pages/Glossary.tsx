@@ -81,6 +81,12 @@ export default function Glossary() {
       </Panel>
 
       <Panel title={<span id="method">Data and method</span>}>
+        <p>
+          SEAGER follows Robert Orr’s <a href="https://www.baseballprospectus.com/news/article/86572/the-crooked-inning-corey-seager-rangers/" target="_blank" rel="noreferrer">selective aggression framework at Baseball Prospectus</a>,
+          using an NPB model fitted separately for each season. Swing values and called-strike probabilities are estimated by count and pitch location,
+          smoothing neighboring cells and shrinking toward count averages. Locations without enough swings or takes are excluded, as are bunts,
+          hit-by-pitches and missing locations or counts. Its raw values are not directly comparable with BP’s MLB figures.
+        </p>
         <dl className="defs">
           {NOTES.map(([t, d]) => <div key={t}><dt>{t}</dt><dd>{d}</dd></div>)}
         </dl>

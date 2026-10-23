@@ -9,6 +9,7 @@
 import { existsSync, mkdirSync, readFileSync, rmSync } from 'node:fs'
 import { join } from 'node:path'
 import { REGULAR, ROOT, TEAMS, id, listCsv, normName, num, readCsv, writeJson } from './lib.mjs'
+import { decisionBin, gradeDecisions, newDecisionModel, observeDecision, priceDecisions } from './seager.mjs'
 
 const OUT = join(ROOT, 'public', 'data')
 const names = existsSync(join(ROOT, 'data', 'names.json'))
@@ -105,6 +106,7 @@ const newGrid = () => ({ n: zeros(100), sw: zeros(100), wh: zeros(100), h: zeros
 const OUTCOME_RUNS = { 119: 0.55, 103: 0.57, 102: 0.7, 104: 1.0, 132: 1.0, 105: 1.27, 106: 1.65, 133: 1.65 }
 const newRv = (cells) => ({ net: new Int32Array(cells * 12), term: zeros(cells), tn: zeros(cells) })
 const countValues = new Map() // season -> { cs: sum of outcomes by count, cn, ts, tn }
+const decisionModels = new Map()
 const seasonRv = (season) => {
   let v = countValues.get(season)
   if (!v) countValues.set(season, (v = { cs: zeros(12), cn: zeros(12), ts: 0, tn: 0 }))
@@ -297,6 +299,14 @@ function processGame(rows) {
     else if (BALL.has(pr) && nb < 3) to = from + 3
     else if ((CALLED.has(pr) || pr === '116' || pr === '101') && ns < 2) to = from + 1
     for (const acc of [bg, pg]) addRv(acc, cell, from, to, w)
+    // Grade only identifiable swings and ordinary takes; exclude bunts, HBP,
+    // interference and pitches with missing locations or counts.
+    const bin = decisionBin(r.plate_x, r.plate_y, r.balls, r.strikes)
+    if (bin != null && !BUNT.has(pr) && (swing || BALL.has(pr) || CALLED.has(pr))) {
+      let model = decisionModels.get(season)
+      if (!model) decisionModels.set(season, (model = newDecisionModel()))
+      observeDecision(model, (rb.decisions ??= new Map()), bin, swing, CALLED.has(pr), to, w)
+    }
     addRv(a, 0, from, to, w)
     addRv(vg, 0, from, to, w)
     if (st.paBatter !== B) { st.paBatter = B; st.paCounts = new Set() }
@@ -490,6 +500,8 @@ for (const season of seasonList) {
   const sv = seasonRv(season)
   const rvMean = sv.tn ? sv.ts / sv.tn : 0
   const V = sv.cs.map((x, c) => (sv.cn[c] ? x / sv.cn[c] - rvMean : 0))
+  const model = decisionModels.get(season)
+  const decisionDeltas = model ? priceDecisions(model, V, rvMean, OUTCOME_RUNS[119]) : null
   const gridRv = (g) => g.n.map((_, cell) => priceRv(g, cell, V, rvMean))
   const total = (arr) => Math.round(arr.reduce((x, y) => x + y, 0) * 10) / 10
   for (const [pid, r] of seasons.get(season)) {
@@ -507,6 +519,7 @@ for (const season of seasonList) {
       const { e, ...b } = r.bat
       row.b = strip(b, ['g', 'pa', 'ab'])
       if (r.bp) Object.assign(row.b, strip(r.bp))
+      if (r.decisions && decisionDeltas) Object.assign(row.b, gradeDecisions(r.decisions, decisionDeltas))
       if (bgRv && r.bat.pa) row.b.rv = total(bgRv)
       if (e) row.e = e
     }

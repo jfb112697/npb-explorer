@@ -138,6 +138,7 @@ export function batValues(b: Counts, lg: League, league: string, tr?: TrackingRo
     hrp: div(n(b, 'hr'), pa), xbhp: div(n(b, 'd') + n(b, 't') + n(b, 'hr'), pa),
     woba,
     wobacon: conRaw == null ? null : conRaw * lg.wobaScale,
+    seager: seagerValue(b),
     rv: n(b, 'n') > 0 ? n(b, 'rv') : null,
     wrcp: woba == null ? null : (((woba - lg.all.woba) / lg.wobaScale + lg.all.rpa) / own.rpa) * 100,
     opsp: o == null || s == null ? null : 100 * (o / own.obp + s / own.slg - 1),
@@ -224,6 +225,13 @@ const S = (
 
 const DISC_NOTE = 'The strike zone here is the rulebook box in the pitch-location feed, not a batter-specific zone.'
 
+/** SEAGER is a difference of rates with distinct denominators, not run value. */
+export function seagerValue(b: Counts): number | null {
+  const good = n(b, 'sgGoodTake') + n(b, 'sgGoodSwing')
+  if (!n(b, 'sgN') || !n(b, 'sgTake') || !good) return null
+  return n(b, 'sgGoodTake') / good - n(b, 'sgHitTake') / n(b, 'sgTake')
+}
+
 export const STATS: StatDef[] = [
   // ----- batting: standard -----
   S('bat', 'Standard', 'g', 'G', 'Games', 'int', 'Games played. NPB plays a 143-game season.', { mlb: '143 games, against 162 in MLB, so counting totals run about 12% lower.' }),
@@ -247,6 +255,7 @@ export const STATS: StatDef[] = [
   S('bat', 'Standard', 'slg', 'SLG', 'Slugging percentage', 'avg', 'Total bases per at-bat.', { better: 'high', rail: true, mlb: 'Runs lower than MLB. The league has slugged between .350 and .390 since 2019; MLB is nearer .400.' }),
   S('bat', 'Standard', 'ops', 'OPS', 'On-base plus slugging', 'avg', 'OBP plus SLG.', { better: 'high', rail: true, mlb: 'Shift your scale down about 50 points: .800 in NPB is a star-level bat.' }),
   // ----- batting: advanced -----
+  S('bat', 'Advanced', 'seager', 'SEAGER', 'Selective aggression engagement rate (NPB model)', 'pct', 'Balances patience with aggression on hittable pitches. Selectivity (good takes divided by all good decisions) minus hittable pitches taken (divided by all takes). A pitch is hittable when its modeled swing value exceeds its take value at that count and location. Higher is better; the value is a difference in percentage points.', { better: 'high', rail: true, mlb: 'Adapted from Robert Orr’s SEAGER at Baseball Prospectus. This site fits its own model to each NPB season’s pitch outcomes and called-strike probabilities. Sparse locations and missing pitch data are excluded. Compare NPB percentiles, not raw values with BP’s MLB leaderboard.' }),
   S('bat', 'Advanced', 'wrcp', 'wRC+', 'Weighted runs created plus', 'plus', 'Total offensive value per plate appearance, where 100 is league average and each point is one percent better or worse. Built from wOBA with linear weights rescaled to each NPB season, and compared with the player’s own league (Central or Pacific).', { better: 'high', rail: true, mlb: 'Reads like FanGraphs wRC+, with one caveat: it is not park-adjusted, so hitters in small parks (Jingu, Yokohama) look a bit better than they should.' }),
   S('bat', 'Advanced', 'opsp', 'OPS+', 'Adjusted OPS', 'plus', 'OPS relative to the player’s league, where 100 is average.', { better: 'high', mlb: 'Like Baseball-Reference OPS+, but not park-adjusted.' }),
   S('bat', 'Advanced', 'woba', 'wOBA', 'Weighted on-base average', 'avg', 'On-base percentage that credits each way of reaching base by how much it is worth in runs. Scaled so the league wOBA matches league OBP that season.', { better: 'high', rail: true, mlb: 'Same idea and scale as FanGraphs wOBA. Savant’s xwOBA is not possible here: NPB publishes no per-batted-ball feed, only season averages (see the Tracking tab).' }),
