@@ -8,7 +8,7 @@ import { POSITIONS, POSITION_NAME } from '../lib/teams'
 import type { Category } from '../lib/types'
 
 const DEFAULT_SORT: Record<string, string> = {
-  'bat.Standard': 'ops', 'bat.Advanced': 'wrcp', 'bat.Plate discipline': 'whiffp', 'bat.Batted ball': 'pullp',
+  'bat.Standard': 'ops', 'bat.Advanced': 'wrcp', 'bat.Plate discipline': 'whiffp', 'bat.Batted ball': 'pullp', 'bat.Tracking': 'ev',
   'pit.Standard': 'era', 'pit.Advanced': 'fip', 'pit.Stuff and command': 'fbv', 'pit.Running game': 'sba',
   'fld.Fielding': 'paa', 'fld.Catching': 'cscp',
   'run.Stolen bases': 'wsb', 'run.On the bases': 'xbtp', 'run.Speed signals': 'ifh',
@@ -35,7 +35,7 @@ export default function Leaders() {
   const season = useSeason(seasonNo)
 
   const cat = (['bat', 'pit', 'fld', 'run'].includes(params.get('cat') ?? '') ? params.get('cat') : 'bat') as Category
-  const groups = groupsFor(cat)
+  const groups = groupsFor(cat).filter((g) => g !== 'Tracking' || (season.data?.players.some((p) => p.row.tr) ?? false))
   const group = groups.includes(params.get('group') ?? '') ? params.get('group')! : groups[0]
   const lg = params.get('lg') ?? 'all'
   const team = params.get('team') ?? 'all'

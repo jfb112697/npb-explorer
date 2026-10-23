@@ -14,6 +14,44 @@ const OUT = join(ROOT, 'public', 'data')
 const names = existsSync(join(ROOT, 'data', 'names.json'))
   ? JSON.parse(readFileSync(join(ROOT, 'data', 'names.json'), 'utf8'))
   : {}
+const jpNames = Object.fromEntries(Object.entries(names).map(([pid, n]) => [pid, n.jp]).filter(([, jp]) => jp))
+
+// Joins NPB+ Hawk-Eye season tracking aggregates (data/tracking-<year>.json, written by
+// scripts/tracking.mjs) to the season data by player name and patches the measured values
+// (EV, LA, hard-hit, barrel, swing speed, max sprint speed) into the season JSON.
+// No modeled stats: the feed is season-wide aggregates, so expected stats like xwOBA
+// are deliberately not computed.
+function patchTracking(seasonPath, trackingPath, jpByPid) {
+  const tracking = JSON.parse(readFileSync(trackingPath, 'utf8')).players.filter((p) => p.ev != null)
+  const file = JSON.parse(readFileSync(seasonPath, 'utf8'))
+  const byName = new Map()
+  for (const [pid, jp] of Object.entries(jpByPid)) {
+    if (!jp) continue
+    byName.set(normName(jp), Number(pid))
+  }
+  const rowsById = new Map(file.players.map((r) => [r.id, r]))
+  const joined = []
+  for (const t of tracking) {
+    const pid = byName.get(normName(t.name))
+    const row = pid != null ? rowsById.get(pid) : undefined
+    if (row?.b) joined.push({ t, row })
+  }
+
+  let patched = 0
+  for (const { t, row } of joined) {
+    if (t.la == null || t.hh == null || t.bar == null) continue
+    const b = row.b
+    const bbe = (b.ab ?? 0) - (b.so ?? 0) + (b.sf ?? 0)
+    if (bbe < 30) continue
+    row.tr = {
+      ev: t.ev, la: t.la, hh: t.hh / 100, bar: t.bar / 100, sws: t.sws ?? null, spr: t.spr ?? null,
+    }
+    patched++
+  }
+
+  writeJson(seasonPath, file)
+  console.log(`tracking: joined ${joined.length}/${tracking.length} tracked players, patched ${patched}`)
+}
 
 // ---------- code tables (decoded from the feed's Japanese descriptions) ----------
 const SWING = new Set(['101', '116', '130', '102', '104', '105', '106', '107', '108', '109', '110', '111', '112', '113', '115', '125', '126', '127', '132', '133'])
@@ -531,6 +569,8 @@ for (const season of seasonList) {
   const tg = {}
   for (const t of Object.keys(TEAMS)) tg[t] = teamGames.get(season + ':' + t)?.size ?? 0
   writeJson(join(OUT, 's', `${season}.json`), { season: Number(season), games: tg, players: out })
+  const trackingFile = join(ROOT, 'data', `tracking-${season}.json`)
+  if (existsSync(trackingFile)) patchTracking(join(OUT, 's', `${season}.json`), trackingFile, jpNames)
   console.log(`    count values 0-0 ${V[0].toFixed(3)}, 3-0 ${V[9].toFixed(3)}, 0-2 ${V[2].toFixed(3)}, 3-2 ${V[11].toFixed(3)}; out ${(-rvMean).toFixed(3)}`)
   console.log(`  ${season}: ${out.length} players, team games ${Math.min(...Object.values(tg))}-${Math.max(...Object.values(tg))}`)
 }

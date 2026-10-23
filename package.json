@@ -10,6 +10,7 @@
     "preview": "vite preview",
     "data:fetch": "node scripts/fetch-data.mjs",
     "data:names": "node scripts/names.mjs",
+    "data:tracking": "node scripts/tracking.mjs",
     "data:build": "node scripts/build-data.mjs",
     "data": "npm run data:fetch && npm run data:names && npm run data:build"
   },

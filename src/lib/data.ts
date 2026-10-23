@@ -67,7 +67,7 @@ function derive(file: SeasonFile, meta: Meta): Season {
     const league = leagueOf(row.t)
     const d: Derived = { row, league }
     if (row.b) {
-      d.bat = batValues(row.b, lg, league)
+      d.bat = batValues(row.b, lg, league, row.tr)
       d.run = runValues(row.b, row.r, lg)
     }
     if (row.p) d.pit = pitValues(row.p, lg, league)

@@ -1,7 +1,7 @@
 // Every stat the app shows: how it is computed from the season counts, how it is
 // formatted, which direction is good, and the hover text that explains it to someone
 // who knows MLB stats but not NPB.
-import type { Category, Counts, SeasonFile, SeasonRow, Values } from './types'
+import type { Category, Counts, SeasonFile, SeasonRow, TrackingRow, Values } from './types'
 
 export type Fmt = 'int' | 'avg' | 'pct' | 'dec1' | 'dec2' | 'ip' | 'velo' | 'plus' | 'signed'
 
@@ -118,7 +118,7 @@ function discipline(c: Counts): Values {
   }
 }
 
-export function batValues(b: Counts, lg: League, league: string): Values {
+export function batValues(b: Counts, lg: League, league: string, tr?: TrackingRow): Values {
   const ab = n(b, 'ab'), h = n(b, 'h'), pa = n(b, 'pa')
   const o = obp(b), s = div(tb(b), ab)
   const raw = rawWoba(b)
@@ -149,6 +149,7 @@ export function batValues(b: Counts, lg: League, league: string): Values {
     goao: d.goao, popupp: d.popupp,
     pullp: div(n(b, 'pl'), balls), centp: div(n(b, 'ce'), balls), oppop: div(n(b, 'op'), balls),
     gidp: n(b, 'gidp'), ifh: n(b, 'ifh'),
+    ev: tr?.ev ?? null, la: tr?.la ?? null, hh: tr?.hh ?? null, bar: tr?.bar ?? null, sws: tr?.sws ?? null, spr: tr?.spr ?? null,
   }
 }
 
@@ -248,8 +249,8 @@ export const STATS: StatDef[] = [
   // ----- batting: advanced -----
   S('bat', 'Advanced', 'wrcp', 'wRC+', 'Weighted runs created plus', 'plus', 'Total offensive value per plate appearance, where 100 is league average and each point is one percent better or worse. Built from wOBA with linear weights rescaled to each NPB season, and compared with the player’s own league (Central or Pacific).', { better: 'high', rail: true, mlb: 'Reads like FanGraphs wRC+, with one caveat: it is not park-adjusted, so hitters in small parks (Jingu, Yokohama) look a bit better than they should.' }),
   S('bat', 'Advanced', 'opsp', 'OPS+', 'Adjusted OPS', 'plus', 'OPS relative to the player’s league, where 100 is average.', { better: 'high', mlb: 'Like Baseball-Reference OPS+, but not park-adjusted.' }),
-  S('bat', 'Advanced', 'woba', 'wOBA', 'Weighted on-base average', 'avg', 'On-base percentage that credits each way of reaching base by how much it is worth in runs. Scaled so the league wOBA matches league OBP that season.', { better: 'high', rail: true, mlb: 'Same idea and scale as FanGraphs wOBA. Savant’s xwOBA is not possible here because NPB does not publish exit velocity or launch angle.' }),
-  S('bat', 'Advanced', 'wobacon', 'wOBAcon', 'wOBA on contact', 'avg', 'wOBA counting only plate appearances that ended with the ball in play or over the fence: how much damage the hitter does when he connects.', { better: 'high', rail: true, mlb: 'Savant’s wOBAcon. The expected versions (xwOBA, xwOBAcon) need exit velocity and launch angle, which NPB does not publish, so only actual results are available.' }),
+  S('bat', 'Advanced', 'woba', 'wOBA', 'Weighted on-base average', 'avg', 'On-base percentage that credits each way of reaching base by how much it is worth in runs. Scaled so the league wOBA matches league OBP that season.', { better: 'high', rail: true, mlb: 'Same idea and scale as FanGraphs wOBA. Savant’s xwOBA is not possible here: NPB publishes no per-batted-ball feed, only season averages (see the Tracking tab).' }),
+  S('bat', 'Advanced', 'wobacon', 'wOBAcon', 'wOBA on contact', 'avg', 'wOBA counting only plate appearances that ended with the ball in play or over the fence: how much damage the hitter does when he connects.', { better: 'high', rail: true, mlb: 'Savant’s wOBAcon. The expected versions (xwOBA, xwOBAcon) need the EV/LA of each ball in play, and NPB only publishes season averages.' }),
   S('bat', 'Advanced', 'rv', 'RV', 'Batting run value', 'signed', 'Runs added above an average hitter, summed pitch by pitch. Every pitch is credited with how much it moved the hitter’s expected production: a ball or a hit adds, a strike or an out subtracts. Covers tracked pitches only.', { better: 'high', rail: true, mlb: 'Built the way Savant builds Run Value, from the change in count and the outcome. It leaves out base-out state, so every single is worth the same whether or not anyone is on.' }),
   S('bat', 'Advanced', 'iso', 'ISO', 'Isolated power', 'avg', 'Slugging minus batting average: extra bases per at-bat.', { better: 'high', rail: true, mlb: 'League ISO has run from .105 to .140 since 2019, against roughly .160 in MLB.' }),
   S('bat', 'Advanced', 'babip', 'BABIP', 'Batting average on balls in play', 'avg', 'Average on balls put in play, leaving out homers and strikeouts. Swings a lot on luck and speed.', { mlb: 'League norm is about .290, a touch under MLB.' }),
@@ -279,6 +280,13 @@ export const STATS: StatDef[] = [
   S('bat', 'Batted ball', 'popupp', 'Pop%', 'Infield pop-up rate', 'pct', 'Infield pop-ups as a share of batted-ball outs.', { better: 'low' }),
   S('bat', 'Batted ball', 'gidp', 'GIDP', 'Grounded into double plays', 'int', 'Ground-ball double plays hit into.'),
   S('bat', 'Batted ball', 'ifh', 'IFH', 'Infield hits', 'int', 'Hits fielded by an infielder, pitcher or catcher.'),
+  // ----- batting: tracking (NPB+ Hawk-Eye) -----
+  S('bat', 'Tracking', 'ev', 'Avg EV', 'Average exit velocity', 'velo', 'Average speed of the batter’s batted balls, tracked by Hawk-Eye in the NPB+ feed. 2026 is the first season in this app with tracking data.', { better: 'high', rail: true, mlb: 'Savant’s average exit velocity. The feed is in km/h: 150 km/h is 93.2 mph, roughly a 90th-percentile mark.' }),
+  S('bat', 'Tracking', 'la', 'Avg LA', 'Average launch angle', 'dec1', 'Average vertical angle of batted balls. Aggregates mix fly balls with grounders, so read it as a profile tilt, not a swing fix.', { rail: true, mlb: 'Savant’s average launch angle.' }),
+  S('bat', 'Tracking', 'hh', 'HardHit%', 'Hard-hit rate', 'pct', 'Share of batted balls NPB+ classes as hard-hit.', { better: 'high', rail: true, mlb: 'Savant’s Hard-Hit%, though NPB’s threshold is set by NPB+ and may not match MLB’s 95 mph.' }),
+  S('bat', 'Tracking', 'bar', 'Barrel%', 'Barrel rate', 'pct', 'Share of batted balls with the ideal combination of exit velocity and launch angle.', { better: 'high', rail: true, mlb: 'Savant’s Barrel%, per NPB+’s definition.' }),
+  S('bat', 'Tracking', 'sws', 'Swing', 'Average swing speed', 'velo', 'Average bat speed on swings, from the Hawk-Eye tracking system.', { better: 'high', rail: true, mlb: 'Comparable to Savant’s average swing speed, which MLB has tracked since 2024.' }),
+  S('bat', 'Tracking', 'spr', 'Sprint', 'Max sprint speed', 'dec1', 'Fastest top speed Hawk-Eye recorded for the player, in km/h. It is a single best sprint, not an average, so it reads a point or two hotter than a sustained-speed metric; mid-30s is elite.', { better: 'high', rail: true, mlb: 'Savant’s Sprint Speed is feet per second averaged over a player’s best runs (30 ft/s ≈ 33 km/h is elite); this is the single fastest recorded sprint, in km/h.' }),
 
   // ----- running -----
   S('run', 'Stolen bases', 'sb', 'SB', 'Stolen bases', 'int', 'Stolen bases, counted from play-by-play.', { better: 'high' }),

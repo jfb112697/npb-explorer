@@ -1,5 +1,15 @@
 export type Counts = Record<string, number>
 
+/** NPB+ Hawk-Eye season tracking aggregates, joined at build time. hh/bar are fractions; spr is km/h. */
+export interface TrackingRow {
+  ev: number
+  la: number
+  hh: number
+  bar: number
+  sws?: number
+  spr?: number
+}
+
 /** One player's regular-season counts, as written by scripts/build-data.mjs. */
 export interface SeasonRow {
   id: number
@@ -12,6 +22,7 @@ export interface SeasonRow {
   p?: Counts
   r?: Counts
   f?: Record<string, Counts>
+  tr?: TrackingRow
   /** Errors charged in the box score, across all positions. */
   e?: number
   dh?: number

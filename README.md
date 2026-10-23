@@ -21,7 +21,8 @@ npm run dev
 | --- | --- |
 | `npm run data:fetch` | Downloads box scores and play-by-play from the data repository's GitHub releases into `.cache/raw`. Skips files that have not changed. |
 | `npm run data:names` | Matches players to npb.jp for English names, headshots and bio details. Writes `data/names.json` (committed). Responses are cached in `.cache/npb`. |
-| `npm run data:build` | Aggregates everything into `public/data` (about 28 MB across 1,550 small files). Takes about two minutes. |
+| `npm run data:tracking` | Fetches NPB+ Hawk-Eye season tracking aggregates (exit velocity, launch angle, hard-hit, barrel, swing and max sprint speed) for every rostered player from the NPB+ GraphQL API. Writes `data/tracking-<year>.json` (committed). |
+| `npm run data:build` | Aggregates everything into `public/data` (about 28 MB across 1,550 small files). Takes about two minutes. When `data/tracking-<year>.json` exists for a season, the measured tracking values are merged into that season’s file. No modeled stats: expected stats like xwOBA need per-batted-ball data, which NPB does not publish. |
 
 `npm run build` then produces a fully static `dist/`. `public/_redirects` sends every path to
 `index.html` for hosts that honor it (Cloudflare Pages, Netlify).
