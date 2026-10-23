@@ -1,13 +1,13 @@
 import assert from 'node:assert/strict'
 import test from 'node:test'
 import { decisionBin, gradeDecisions, newDecisionModel, observeDecision, priceDecisions } from './seager.mjs'
-import { batValues, buildLeague, seagerValue, STAT } from '../src/lib/stats.ts'
+import { batValues, buildLeague, seagerValue, fmt, STAT } from '../src/lib/stats.ts'
 
 test('uses the two distinct denominators in Orr’s formula', () => {
   const counts = gradeDecisions(new Map([[0, [30, 10]], [1, [20, 40]]]), [0.1, -0.1])
   assert.deepEqual(counts, { sgTake: 50, sgHitTake: 10, sgGoodTake: 40, sgGoodSwing: 30, sgN: 100 })
-  assert.equal(seagerValue(counts), 40 / 70 - 10 / 50)
-  assert.equal(seagerValue(gradeDecisions(new Map([[0, [30, 0]], [1, [0, 40]]]), [1, -1])), 40 / 70)
+  assert.equal(seagerValue(counts), 100 * (40 / 70 - 10 / 50))
+  assert.equal(seagerValue(gradeDecisions(new Map([[0, [30, 0]], [1, [0, 40]]]), [1, -1])), 100 * (40 / 70))
   assert.equal(seagerValue(gradeDecisions(new Map([[0, [0, 10]], [1, [20, 0]]]), [1, -1])), null)
 })
 
@@ -22,7 +22,7 @@ test('missing data, unsupported cells and undefined rates are unavailable', () =
 
 test('zero and negative values are retained', () => {
   assert.equal(seagerValue({ sgN: 4, sgTake: 2, sgHitTake: 1, sgGoodTake: 1, sgGoodSwing: 1 }), 0)
-  assert.equal(seagerValue({ sgN: 5, sgTake: 4, sgHitTake: 3, sgGoodTake: 1, sgGoodSwing: 1 }), -0.25)
+  assert.equal(seagerValue({ sgN: 5, sgTake: 4, sgHitTake: 3, sgGoodTake: 1, sgGoodSwing: 1 }), -25)
 })
 
 test('location and count validation preserves zero coordinates and separates counts', () => {
@@ -75,9 +75,15 @@ test('SEAGER flows through batting values and the existing top-left Hitting grou
   const b = { g: 1, pa: 4, ab: 4, sgN: 10, sgTake: 5, sgHitTake: 1, sgGoodTake: 4, sgGoodSwing: 3 }
   const file = { season: 2026, games: { 1: 1 }, players: [{ id: 1, t: 1, pos: 'SS', b }] }
   const league = buildLeague(file, () => 'CL')
-  assert.equal(batValues(b, league, 'CL').seager, 4 / 7 - 1 / 5)
+  assert.equal(batValues(b, league, 'CL').seager, 100 * (4 / 7 - 1 / 5))
   assert.equal(batValues({ pa: 4, ab: 4 }, league, 'CL').seager, null)
   assert.equal(STAT['bat.seager'].group, 'Advanced')
   assert.equal(STAT['bat.seager'].rail, true)
   assert.equal(STAT['bat.seager'].better, 'high')
+})
+
+test('SEAGER displays a score without a percentage sign', () => {
+  assert.equal(fmt(48, STAT['bat.seager'].fmt), '48.0')
+  assert.equal(fmt(-12.5, STAT['bat.seager'].fmt), '-12.5')
+  assert.equal(fmt(null, STAT['bat.seager'].fmt), '–')
 })

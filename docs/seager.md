@@ -3,7 +3,7 @@
 Based on Robert Orr’s [Quantifying the Corey Seager Approach](https://www.baseballprospectus.com/news/article/86572/the-crooked-inning-corey-seager-rangers/) (Baseball Prospectus, November 8, 2023).
 
 SEAGER = good takes / (good takes + good swings) − hittable takes / all takes.
-The app stores a fraction and displays it as a percentage; differences are percentage points.
+The app multiplies this difference by 100 and displays a unitless score (for example, 48.0), without a percent sign. The percentile rail separately shows the player’s rank.
 A good swing has positive modeled swing-minus-take value; a good take has negative value.
 Zero deltas are ungraded. Missing denominators produce no value.
 
